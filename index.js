@@ -1,12 +1,13 @@
 // Imports
 const { Client } = require("@notionhq/client");
-const client = require('twilio')(process.env['TWILIO_SID'], process.env['TWILIO_AUTH']);
+const dotenv = require('dotenv').config()
+const client = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
 const fs = require('fs');
 const openai = require('openai')
 
 // Constants
 const notion = new Client({
-  auth: process.env['NOTION_TOKEN'],
+  auth: process.env.NOTION_TOKEN,
 });
 const chemistryid = "db07dcfa-9a94-4279-93ea-5b32691be978";
 const humanid = "21d456da-f639-4619-b579-96668d20b68d";
@@ -50,7 +51,7 @@ const getCallouts = async () => {
 
 const processBlock = (block) => {
   if (!["column_list", "divider", "unsupported", "equation"].includes(block.type) &&
-      block.type === "paragraph" && block.paragraph.rich_text.length > 0) {
+    block.type === "paragraph" && block.paragraph.rich_text.length > 0) {
     try {
       console.log(block[block.type].rich_text[0].plain_text);
     } catch (e) {
@@ -76,7 +77,7 @@ const getPage = async (pageid) => {
       text += block[block.type].rich_text[0]?.plain_text + "\n";
     }
 
-    fs.writeFileSync(`${title}.txt`, text, 'utf8', (err) => {
+    fs.writeFileSync(`./logs/${title}.txt`, text, 'utf8', (err) => {
       if (err) throw err;
       console.log('The file has been saved!');
     });
@@ -86,9 +87,9 @@ const getPage = async (pageid) => {
 const getPageIdByName = async (pageName) => {
   // Query the database using the provided DBID
   const response = await notion.databases.query({ database_id: notesdb });
-  
+
   // Search the database for a page with the specified name
-  const page = response.results.find(p => 
+  const page = response.results.find(p =>
     p.properties.Name.title[0]?.plain_text === pageName
   );
 
@@ -102,7 +103,7 @@ const getPagesByUnit = async (unitName) => {
   const response = await notion.databases.query({ database_id: databaseId });
 
   // Filter the pages based on the Unit property
-  const pages = response.results.filter(p => 
+  const pages = response.results.filter(p =>
     p.properties.Unit?.select?.name === unitName
   );
 
@@ -112,7 +113,7 @@ const getPagesByUnit = async (unitName) => {
 
 (async () => {
   const pages = await getPagesByUnit("Unit 2")
-  pages.forEach( async (page) => {
+  pages.forEach(async (page) => {
     await getPage(page.id)
   })
 })()
