@@ -1,8 +1,0 @@
-Parts of Waves:
-Crest - Top of the wave
-Trough: Bottom of the wave
-Wavelength: The shortest distance between equivalent points on a continuous wave commonly measured in nanometers
-Electromagnetic Radiation:
-A form of energy that exhibits wavelike behavior as it travels through space.
-They all move at teh speed of light! (3.00x10^8m/s)
-Radio Waves, Microwaves, Infrared Waves
