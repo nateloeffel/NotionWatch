@@ -2,6 +2,7 @@
 const { Client } = require("@notionhq/client");
 const client = require('twilio')(process.env['TWILIO_SID'], process.env['TWILIO_AUTH']);
 const fs = require('fs');
+const openai = require('openai')
 
 // Constants
 const notion = new Client({
@@ -9,7 +10,7 @@ const notion = new Client({
 });
 const chemistryid = "db07dcfa-9a94-4279-93ea-5b32691be978";
 const humanid = "21d456da-f639-4619-b579-96668d20b68d";
-const dbid = "1a57b0b38ba14b33a01bdcfd50d0ab1a"
+const notesdb = "0c2965f05cfb4ad4839ec9b675df13bf"
 
 // Functions
 const checkAssignments = async () => {
@@ -60,7 +61,7 @@ const processBlock = (block) => {
   }
 };
 
-const notesContent = async (pageid) => {
+const getPage = async (pageid) => {
   const response = await notion.databases.query({ database_id: "0c2965f05cfb4ad4839ec9b675df13bf" });
 
   for (const page of response.results) {
@@ -82,8 +83,37 @@ const notesContent = async (pageid) => {
   }
 };
 
-// Function Calls
-notesContent("afc34a5a-c7ba-4a60-9510-395751451846");
-// Uncomment these to use
-// getCallouts();
-// checkAssignments();
+const getPageIdByName = async (pageName) => {
+  // Query the database using the provided DBID
+  const response = await notion.databases.query({ database_id: notesdb });
+  
+  // Search the database for a page with the specified name
+  const page = response.results.find(p => 
+    p.properties.Name.title[0]?.plain_text === pageName
+  );
+
+  // If found, return the page ID
+  return page ? page.id : 'Page not found';
+};
+
+const getPagesByUnit = async (unitName) => {
+  const databaseId = notesdb
+  // Query the database using the provided databaseId
+  const response = await notion.databases.query({ database_id: databaseId });
+
+  // Filter the pages based on the Unit property
+  const pages = response.results.filter(p => 
+    p.properties.Unit?.select?.name === unitName
+  );
+
+  // If pages are found, return them
+  return pages.length > 0 ? pages : 'No pages found';
+};
+
+(async () => {
+  const pages = await getPagesByUnit("Unit 2")
+  pages.forEach( async (page) => {
+    await getPage(page.id)
+  })
+})()
+
