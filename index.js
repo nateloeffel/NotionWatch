@@ -151,7 +151,32 @@ const getPagesByUnit = async (unitName) => {
 };
 
 
+// v1 - no rewrite
+// (async () => {
+//   const pages = await getPagesByUnit("Unit 2")
+//   pages.forEach(async (page) => {
+//     await getPage(page)
+//   })
 
+//   const content = await readFilesFromDirectory("./logs")
+//   // Make a request to chatgpt
+//   const chatCompletion = await openai.chat.completions.create({
+//     model: 'gpt-4',
+//     messages: [
+//       { role: "system", content: "You are an expert chemistry teacher. When I ask for help to create a study guide, you will reply with a markdown document that contains questions and information in the format of a study guide. These questions and information should be about topics from the notes provided. You should have at least 30 questions. Include 'key terms' from each lesson as well as important definitions." },
+//       { role: 'user', content: 'Create a study guide based on the following notes: ```\n' + content + "```" }
+//     ],
+//     max_tokens: 5000
+//   })
+
+//   const response = await chatCompletion.choices[0].message.content
+//   console.log(response)
+
+//   fs.writeFileSync("output1.md", response, 'utf-8')
+
+
+// })()
+// v2 rewritten shit
 (async () => {
   const pages = await getPagesByUnit("Unit 2")
   pages.forEach(async (page) => {
@@ -160,11 +185,10 @@ const getPagesByUnit = async (unitName) => {
 
   // Rewrite the notes for each file
   const fileNames = fs.readdirSync("./logs");
-
-  // Loop over each file
   for (const fileName of fileNames) {
+    let content;
     // Construct the full file path
-    const filePath = path.join(directory, fileName);
+    const filePath = path.join("./logs", fileName);
 
     // Parse the file path to get the title (file name without extension)
     const title = path.parse(filePath).name;
@@ -179,16 +203,21 @@ const getPagesByUnit = async (unitName) => {
       model: 'gpt-4',
       messages: [
         { role: "system", content: "You are an expert chemistry teacher. You will rewrite my notes to ensure that all topics mentioned are thoroughly explained and any missing information is filled in." },
-        { role: 'user', content: 'Rewrite the following notes: ```\n' + content + "```" }
+        { role: 'user', content: 'Rewrite the following so that all topics mentioned are thoroughly explained and any missing information is filled in. : ```\n' + content + "```" }
       ],
+      max_tokens: 4000
+
     })
-  
+
+    console.log(await rewriteFile)
     const response = await rewriteFile.choices[0].message.content
-    fs.writeFileSync(`${title}.txt`, response, 'utf-8')
+    // console.log(content)
+    fs.writeFileSync(`./logs/${title}.txt`, response, 'utf-8')
 
   }
 
 
+  const content = await readFilesFromDirectory("./logs")
   // Make a request to chatgpt
   const chatCompletion = await openai.chat.completions.create({
     model: 'gpt-4',
@@ -196,11 +225,13 @@ const getPagesByUnit = async (unitName) => {
       { role: "system", content: "You are an expert chemistry teacher. When I ask for help to create a study guide, you will reply with a markdown document that contains questions and information in the format of a study guide. These questions and information should be about topics from the notes provided. You should have at least 30 questions. Include 'key terms' from each lesson as well as important definitions." },
       { role: 'user', content: 'Create a study guide based on the following notes: ```\n' + content + "```" }
     ],
+    max_tokens: 5000
   })
 
   const response = await chatCompletion.choices[0].message.content
+  console.log(response)
 
-  fs.writeFileSync("output.md", response, 'utf-8')
+  fs.writeFileSync("output2.md", response, 'utf-8')
 
 
 })()
