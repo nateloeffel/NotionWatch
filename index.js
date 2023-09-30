@@ -154,25 +154,51 @@ const getPagesByUnit = async (unitName) => {
 
 (async () => {
   const pages = await getPagesByUnit("Unit 2")
-  console.log(pages)
   pages.forEach(async (page) => {
     await getPage(page)
   })
 
-  const content = await readFilesFromDirectory("./logs")
-  console.log(content)
+  // Rewrite the notes for each file
+  const fileNames = fs.readdirSync("./logs");
+
+  // Loop over each file
+  for (const fileName of fileNames) {
+    // Construct the full file path
+    const filePath = path.join(directory, fileName);
+
+    // Parse the file path to get the title (file name without extension)
+    const title = path.parse(filePath).name;
+
+    // Read the content of the file
+    let fileContent = "Title" + title + fs.readFileSync(filePath, 'utf8');
+
+    // Add the title and file content to the content variable
+    content += `Title: ${title}\n${fileContent}\n\n`; // adding a newline to separate content of files
+
+    const rewriteFile = await openai.chat.completions.create({
+      model: 'gpt-4',
+      messages: [
+        { role: "system", content: "You are an expert chemistry teacher. You will rewrite my notes to ensure that all topics mentioned are thoroughly explained and any missing information is filled in." },
+        { role: 'user', content: 'Rewrite the following notes: ```\n' + content + "```" }
+      ],
+    })
+  
+    const response = await rewriteFile.choices[0].message.content
+    fs.writeFileSync(`${title}.txt`, response, 'utf-8')
+
+  }
 
 
   // Make a request to chatgpt
   const chatCompletion = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
+    model: 'gpt-4',
     messages: [
-      { role: 'user', content: 'You are an expert teacher. I want you to create a study guide for the topics discussed in the notes I provide you with. Please format it in markdown. Here are the notes:\n' + content }
+      { role: "system", content: "You are an expert chemistry teacher. When I ask for help to create a study guide, you will reply with a markdown document that contains questions and information in the format of a study guide. These questions and information should be about topics from the notes provided. You should have at least 30 questions. Include 'key terms' from each lesson as well as important definitions." },
+      { role: 'user', content: 'Create a study guide based on the following notes: ```\n' + content + "```" }
     ],
   })
 
   const response = await chatCompletion.choices[0].message.content
-  console.log(response)
 
   fs.writeFileSync("output.md", response, 'utf-8')
 
