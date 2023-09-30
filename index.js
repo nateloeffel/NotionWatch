@@ -3,7 +3,12 @@ const { Client } = require("@notionhq/client");
 const dotenv = require('dotenv').config()
 const client = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
 const fs = require('fs');
-const openai = require('openai')
+const OpenAI = require("openai");
+
+const openai = new OpenAI({
+	apiKey: process.env.OPENAI_API_KEY,
+});
+
 
 // Constants
 const notion = new Client({
@@ -112,9 +117,27 @@ const getPagesByUnit = async (unitName) => {
 };
 
 (async () => {
-  const pages = await getPagesByUnit("Unit 2")
-  pages.forEach(async (page) => {
-    await getPage(page.id)
+  // const pages = await getPagesByUnit("Unit 2")
+  // pages.forEach(async (page) => {
+  //   await getPage(page.id)
+
+
+  // })
+
+  // Read file
+  const content = fs.readFileSync('./logs/Waves.txt', 'utf-8');
+  console.log(content)
+  
+
+  // Make a request to chatgpt
+  const chatCompletion = await openai.chat.completions.create({
+    model: 'gpt-3.5-turbo',
+    messages: [
+      { role: 'user', content: 'You are an expert teacher. I want you to create a study guide based on the topics in the notes I provide you with.' }
+    ]
   })
+
+  console.log(chatCompletion.choices[0].message)
+
 })()
 
