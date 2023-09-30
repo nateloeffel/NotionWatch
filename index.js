@@ -3,10 +3,11 @@ const { Client } = require("@notionhq/client");
 const dotenv = require('dotenv').config()
 const client = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_AUTH);
 const fs = require('fs');
+const path = require('path');
 const OpenAI = require("openai");
 
 const openai = new OpenAI({
-	apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 
@@ -33,6 +34,30 @@ const checkAssignments = async () => {
   });
 };
 
+async function readFilesFromDirectory(directory) {
+  let content = '';
+
+  // Read the names of all files in the directory
+  const fileNames = fs.readdirSync(directory);
+
+  // Loop over each file
+  for (const fileName of fileNames) {
+    // Construct the full file path
+    const filePath = path.join(directory, fileName);
+
+    // Parse the file path to get the title (file name without extension)
+    const title = path.parse(filePath).name;
+
+    // Read the content of the file
+    const fileContent = fs.readFileSync(filePath, 'utf8');
+
+    // Add the title and file content to the content variable
+    content += `Title: ${title}\n${fileContent}\n\n`; // adding a newline to separate content of files
+  }
+
+  return content;
+}
+
 const notifySms = async (title) => {
   client.messages.create({
     body: `Assignment: ${title} is due soon.`,
@@ -55,31 +80,38 @@ const getCallouts = async () => {
 };
 
 const processBlock = (block) => {
-  if (!["column_list", "divider", "unsupported", "equation"].includes(block.type) &&
-    block.type === "paragraph" && block.paragraph.rich_text.length > 0) {
+  if (!["column_list", "divider", "unsupported", "equation", "table", "image"].includes(block.type)) {
+    if (block.type == "paragraph" && !block.paragraph.rich_text.length > 0) return
     try {
-      console.log(block[block.type].rich_text[0].plain_text);
+      return block[block.type].rich_text[0].plain_text;
     } catch (e) {
       console.error(e);
-      console.log(block);
       process.exit(0);
     }
   }
+  return null;
 };
 
 const getPage = async (pageid) => {
+  let pageinfo = {
+    id: pageid
+  }
   const response = await notion.databases.query({ database_id: "0c2965f05cfb4ad4839ec9b675df13bf" });
 
   for (const page of response.results) {
     if (pageid && page.id !== pageid) continue;
 
     const title = page.properties.Name.title[0].plain_text;
+    pageinfo = {
+      ...
+      title
+    }
     const blocks = await notion.blocks.children.list({ block_id: page.id });
     let text = "";
 
     for (const block of blocks.results) {
-      processBlock(block);
-      text += block[block.type].rich_text[0]?.plain_text + "\n";
+      const processedText = processBlock(block);
+      text += processedText + "\n";
     }
 
     fs.writeFileSync(`./logs/${title}.txt`, text, 'utf8', (err) => {
@@ -87,6 +119,8 @@ const getPage = async (pageid) => {
       console.log('The file has been saved!');
     });
   }
+
+  return pageinfo;
 };
 
 const getPageIdByName = async (pageName) => {
@@ -113,31 +147,35 @@ const getPagesByUnit = async (unitName) => {
   );
 
   // If pages are found, return them
-  return pages.length > 0 ? pages : 'No pages found';
+  return pages?.length > 0 ? pages.map(page => page.id) : 'No pages found';
 };
 
+
+
 (async () => {
-  // const pages = await getPagesByUnit("Unit 2")
-  // pages.forEach(async (page) => {
-  //   await getPage(page.id)
+  const pages = await getPagesByUnit("Unit 2")
+  console.log(pages)
+  pages.forEach(async (page) => {
+    await getPage(page)
+  })
 
-
-  // })
-
-  // Read file
-  const content = fs.readFileSync('./logs/Waves.txt', 'utf-8');
+  const content = await readFilesFromDirectory("./logs")
   console.log(content)
-  
+
 
   // Make a request to chatgpt
   const chatCompletion = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
     messages: [
-      { role: 'user', content: 'You are an expert teacher. I want you to create a study guide based on the topics in the notes I provide you with.' }
-    ]
+      { role: 'user', content: 'You are an expert teacher. I want you to create a study guide for the topics discussed in the notes I provide you with. Please format it in markdown. Here are the notes:\n' + content }
+    ],
   })
 
-  console.log(chatCompletion.choices[0].message)
+  const response = await chatCompletion.choices[0].message.content
+  console.log(response)
+
+  fs.writeFileSync("output.md", response, 'utf-8')
+
 
 })()
 
